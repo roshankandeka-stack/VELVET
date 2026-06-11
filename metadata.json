@@ -1,0 +1,6 @@
+{
+  "name": "Dating App",
+  "description": "A comprehensive and secure dating application featuring user profile completion, discovery swiping with distance filters, real-time chat with Icebreakers, AI Wingman conversation feedback, interactive safety center quizzes, date sharing, and freemium coins monetization.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
