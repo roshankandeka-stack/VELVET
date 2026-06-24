@@ -30,6 +30,8 @@ export interface Profile {
   completesProfile: number; // completion gauge percentage
   relationshipGoal: RelationshipGoal;
   superLiked?: boolean;
+  sentRose?: boolean;
+  sentRoseToMe?: boolean;
 }
 
 export interface Message {

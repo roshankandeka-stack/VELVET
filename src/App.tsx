@@ -19,7 +19,9 @@ export default function App() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
   const [credits, setCredits] = useState<number>(340);
-  const [isPremium, setIsPremium] = useState<boolean>(true);
+  const [isPremium, setIsPremium] = useState<boolean>(false);
+  const [rosesCount, setRosesCount] = useState<number>(1);
+
   
   // Custom sidebar and popup tab states
   // "discover" | "matches" | "safety" | "profile"
@@ -120,7 +122,7 @@ export default function App() {
     const defaultMatches: Match[] = [
       {
         id: "m_maya",
-        partner: MOCK_PARTNERS[0], // Maya
+        partner: { ...MOCK_PARTNERS[0], sentRoseToMe: true }, // Maya sent us a beautiful Crimson Rose!
         likesEachOther: true,
         unreadCount: 1,
         lastActive: "2 min ago",
@@ -130,7 +132,7 @@ export default function App() {
             matchId: "m_maya",
             senderId: "p1",
             senderName: "Maya Patel",
-            text: "Hi Alex! That siphoning coffee thing in London is awesome. Let's debate typography over cold brews next Tuesday?",
+            text: "Hi Alex! 🌹 I sent you a Rose because that siphoning coffee thing in London is awesome. Let's debate typography over cold brews next Tuesday?",
             timestamp: "11:50 AM"
           }
         ]
@@ -172,9 +174,19 @@ export default function App() {
   const currentPartner = filteredPartners[currentIndex] || null;
 
   // Swipe handlers
-  const handleLike = (isSuperLike: boolean = false) => {
+  const handleLike = (isSuperLike: boolean = false, isRoseLike: boolean = false) => {
     if (!currentUserProfile) return;
-    if (swipesCount >= maxSwipes && !isPremium) {
+
+    if (isRoseLike) {
+      if (!isPremium && rosesCount <= 0) {
+        alert("You are out of Roses! Free members are limited to 1 Rose per day to ensure high-intentional interactions. Upgrade to Velvet VIP, earn prizes in our Safety Center quizzes, or buy credits to send another!");
+        setShowCoinStore(true);
+        return;
+      }
+      if (!isPremium) {
+        setRosesCount(prev => prev - 1);
+      }
+    } else if (swipesCount >= maxSwipes && !isPremium) {
       alert("You have reached your daily swipe limit! Upgrade to Velvet VIP or spend 50 credits to get 20 more swipes.");
       return;
     }
@@ -183,14 +195,18 @@ export default function App() {
 
     if (currentPartner) {
       // 75% chance of returning a match in sandbox mode to facilitate immediate rich chats!
-      const isMatch = Math.random() > 0.25 || isSuperLike;
+      const isMatch = Math.random() > 0.25 || isSuperLike || isRoseLike;
       
       if (isMatch) {
         // Create match
         const newMatchId = `m_${currentPartner.id}_${Date.now()}`;
         const newMatch: Match = {
           id: newMatchId,
-          partner: { ...currentPartner, superLiked: isSuperLike },
+          partner: { 
+            ...currentPartner, 
+            superLiked: isSuperLike, 
+            sentRose: isRoseLike 
+          },
           likesEachOther: true,
           unreadCount: 0,
           lastActive: "Just now",
@@ -200,7 +216,9 @@ export default function App() {
               matchId: newMatchId,
               senderId: currentPartner.id,
               senderName: currentPartner.name,
-              text: `Thanks for the ${isSuperLike ? "Super Like! ★ " : "Like! ♥ "} I hope we have great things to talk about! What's your usual Sunday routine?`,
+              text: isRoseLike 
+                ? `Oh wow, thank you so much for the gorgeous Rose! 🌹 It really caught my eye and stands out beautifully in my inbox feed. What's your usual Sunday routine or weekend vibe?`
+                : `Thanks for the ${isSuperLike ? "Super Like! ★ " : "Like! ♥ "} I hope we have great things to talk about! What's your usual Sunday routine?`,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
           ]
@@ -208,13 +226,15 @@ export default function App() {
 
         // Add to matches
         setMatches(prev => [newMatch, ...prev]);
-        setMatchPopupPartner(currentPartner);
+        setMatchPopupPartner({ ...currentPartner, sentRose: isRoseLike, superLiked: isSuperLike });
         setActiveMatchId(newMatchId);
         setActiveTab("matches"); // Automatically open chats!
         
         // Add new match notification
         setNotifications(prev => [
-          `You matched with ${currentPartner.name}! ✨`,
+          isRoseLike 
+            ? `You matched with ${currentPartner.name} via Rose! 🌹`
+            : `You matched with ${currentPartner.name}! ✨`,
           ...prev
         ]);
       }
@@ -501,6 +521,7 @@ export default function App() {
     if (isCorrect) {
       setQuizScore(prev => prev + 10);
       setCredits(prev => prev + 25); // reward user with free premium app credits!
+      setRosesCount(prev => prev + 1); // Reward a free Rose for cyber-security awareness!
     }
 
     setQuizHistory({
@@ -775,7 +796,20 @@ export default function App() {
                 style={{ width: `${Math.min((swipesCount / maxSwipes) * 100, 100)}%` }}
               ></div>
             </div>
-            <p className="text-[9px] text-white/30 text-center mt-2 italic">Select quality over quantity swipe loops.</p>
+            <p className="text-[9px] text-white/30 text-center mt-2 italic font-mono">Select quality over quantity swipe loops.</p>
+          </section>
+
+          {/* Rose Limit Display */}
+          <section className="border-t border-white/5 pt-4 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-white/40 font-mono">
+              <span>Special Roses 🌹</span>
+              <span className="text-[#E94057] font-bold">{isPremium ? "VIP Unlimited ∞" : `${rosesCount} / 1 Left`}</span>
+            </div>
+            {!isPremium && (
+              <div className="bg-rose-950/20 border border-rose-900/30 p-2.5 rounded-lg text-[9px] text-rose-300 leading-normal">
+                Roses are high-intentional indicators. Send one to guarantee first priority chat rooms! Get more via currency exchange or Safety Quiz achievements!
+              </div>
+            )}
           </section>
         </aside>
 
@@ -869,14 +903,30 @@ export default function App() {
                   </div>
 
                   {/* Core layout swiping controls */}
-                  <div className="absolute -bottom-8 left-0 right-0 flex justify-center items-center gap-5 z-20">
+                  <div className="absolute -bottom-8 left-0 right-0 flex justify-center items-center gap-3.5 z-20">
                     {/* Dislike button */}
                     <button 
                       type="button"
                       onClick={handleDislike}
-                      className="w-14 h-14 rounded-full bg-black border border-white/10 hover:border-red-500 hover:text-red-500 text-white/80 flex items-center justify-center shadow-xl transition-all hover:scale-105 cursor-pointer"
+                      className="w-12 h-12 rounded-full bg-[#0E0E0E] border border-white/10 hover:border-red-500 hover:text-red-500 text-white/80 flex items-center justify-center shadow-xl transition-all hover:scale-105 cursor-pointer"
+                      title="Pass"
                     >
-                      <X className="w-6 h-6" />
+                      <X className="w-5 h-5" />
+                    </button>
+
+                    {/* Rose 🌹 button - Special Rose Indication! */}
+                    <button 
+                      type="button"
+                      onClick={() => handleLike(false, true)}
+                      className="w-14 h-14 rounded-full bg-[#1c0f11] border border-red-500/40 hover:border-red-500 text-red-500 flex flex-col items-center justify-center shadow-xl transition-all hover:scale-105 cursor-pointer relative"
+                      title="Send Rose"
+                    >
+                      <span className="text-xl leading-none">🌹</span>
+                      {!isPremium && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-full border border-black animate-pulse">
+                          {rosesCount}
+                        </span>
+                      )}
                     </button>
 
                     {/* Like button */}
@@ -884,6 +934,7 @@ export default function App() {
                       type="button"
                       onClick={() => handleLike(false)}
                       className="w-16 h-16 rounded-full bg-[#D48166] hover:bg-[#c27258] text-black shadow-2xl flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"
+                      title="Like"
                     >
                       <Heart className="w-7 h-7 fill-black" />
                     </button>
@@ -900,9 +951,10 @@ export default function App() {
                           handleLike(true);
                         }
                       }}
-                      className="w-14 h-14 rounded-full bg-black border border-white/10 hover:border-yellow-500 hover:text-yellow-400 text-white/80 flex items-center justify-center shadow-xl transition-all hover:scale-105 cursor-pointer"
+                      className="w-12 h-12 rounded-full bg-[#0E0E0E] border border-white/10 hover:border-yellow-500 hover:text-yellow-400 text-white/80 flex items-center justify-center shadow-xl transition-all hover:scale-105 cursor-pointer"
+                      title="Super Like"
                     >
-                      <Star className="w-5 h-5 fill-yellow-500 text-yellow-500" />
+                      <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
                     </button>
                   </div>
 
@@ -942,6 +994,9 @@ export default function App() {
                     matches.map((m) => {
                       const isActive = m.id === activeMatchId;
                       const lastMsg = m.messages[m.messages.length - 1];
+                      const hasRose = m.partner.sentRoseToMe || m.partner.sentRose;
+                      const receivedRose = m.partner.sentRoseToMe;
+
                       return (
                         <div 
                           key={m.id}
@@ -950,11 +1005,24 @@ export default function App() {
                             // Clear unread simulates
                             m.unreadCount = 0;
                           }}
-                          className={`p-4 flex gap-3 cursor-pointer transition-all ${
-                            isActive ? "bg-white/5 border-l-4 border-[#D48166]" : "hover:bg-neutral-900"
+                          className={`p-4 flex gap-3 cursor-pointer transition-all relative overflow-hidden ${
+                            isActive 
+                              ? hasRose
+                                ? "bg-[#250d10] border-l-4 border-red-500"
+                                : "bg-white/5 border-l-4 border-[#D48166]" 
+                              : hasRose
+                                ? "bg-red-950/10 hover:bg-red-950/20 border-l-2 border-red-500/30"
+                                : "hover:bg-neutral-900"
                           }`}
                         >
-                          <div className="w-10 h-10 rounded-full border border-white/10 relative shrink-0">
+                          {/* Crimson floating glowing badge */}
+                          {hasRose && (
+                            <div className="absolute right-2 top-1.5 bg-red-600/20 border border-red-500/40 text-[8px] text-red-200 font-bold px-1.5 py-0.5 rounded-full scale-90">
+                              <span>🌹</span> {receivedRose ? "Received" : "Sent"}
+                            </div>
+                          )}
+
+                          <div className={`w-10 h-10 rounded-full relative shrink-0 ${hasRose ? "ring-2 ring-red-500/60 p-0.5" : "border border-white/10"}`}>
                             <img 
                               src={m.partner.photoUrl} 
                               alt={m.partner.name} 
@@ -965,10 +1033,10 @@ export default function App() {
                               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0A0A0A]"></span>
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 pr-6">
                             <div className="flex justify-between items-center">
-                              <span className="font-bold text-white tracking-wide">{m.partner.name}</span>
-                              <span className="text-[8px] text-white/30 font-mono">{m.lastActive}</span>
+                              <span className="font-bold text-white tracking-wide truncate">{m.partner.name}</span>
+                              <span className="text-[8px] text-white/30 font-mono shrink-0">{m.lastActive}</span>
                             </div>
                             <p className="text-[10px] text-white/50 truncate pt-0.5">
                               {lastMsg ? lastMsg.text : "No messages yet"}
@@ -988,7 +1056,11 @@ export default function App() {
                     {/* Chat Header details */}
                     <div className="h-14 border-b border-white/5 px-4 flex items-center justify-between bg-[#0E0E0E]">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full border border-white/15">
+                        <div className={`w-8 h-8 rounded-full ${
+                          currentActiveMatch.partner.sentRoseToMe || currentActiveMatch.partner.sentRose
+                            ? "ring-2 ring-red-500"
+                            : "border border-white/15"
+                        }`}>
                           <img 
                             src={currentActiveMatch.partner.photoUrl} 
                             alt={currentActiveMatch.partner.name}
@@ -997,9 +1069,15 @@ export default function App() {
                           />
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-bold text-white">{currentActiveMatch.partner.name}</span>
-                            {currentActiveMatch.partner.verified && (
+                            {currentActiveMatch.partner.sentRoseToMe && (
+                              <span className="text-[8px] bg-red-600/25 border border-red-500/35 text-red-200 font-bold px-1.5 py-0.5 rounded-full">Sent the Rose 🌹</span>
+                            )}
+                            {currentActiveMatch.partner.sentRose && (
+                              <span className="text-[8px] bg-red-600/15 border border-red-500/20 text-red-300 font-bold px-1.5 py-0.5 rounded-full">Rose Connection 🌹</span>
+                            )}
+                            {currentActiveMatch.partner.verified && !currentActiveMatch.partner.sentRoseToMe && !currentActiveMatch.partner.sentRose && (
                               <span className="text-[8px] uppercase font-bold tracking-widest text-blue-400">Verified</span>
                             )}
                           </div>
@@ -1019,6 +1097,20 @@ export default function App() {
 
                     {/* Live chat message feed content */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
+                      
+                      {/* Interactive Rose Banner highlight */}
+                      {(currentActiveMatch.partner.sentRoseToMe || currentActiveMatch.partner.sentRose) && (
+                        <div className="bg-gradient-to-r from-[#200a0d] via-[#150a0f] to-[#200a0d] border border-red-500/20 p-4 rounded-xl text-center space-y-1 mb-2">
+                          <div className="text-xl animate-bounce">🌹</div>
+                          <h4 className="text-xs font-serif font-bold italic text-white">Highlighted Rose Connection Active</h4>
+                          <p className="text-[9px] text-white/65 max-w-sm mx-auto">
+                            {currentActiveMatch.partner.sentRoseToMe 
+                              ? `${currentActiveMatch.partner.name} sent you a warm Crimson Rose to stand out! Get cozy and reply with a witty icebreaker.` 
+                              : `You shared a premium Crimson Rose with ${currentActiveMatch.partner.name}! This connection holds priority alignment in their inbox feed.`}
+                          </p>
+                        </div>
+                      )}
+
                       {currentActiveMatch.messages.map((msg) => {
                         const isMe = msg.senderId === "user_me";
                         const isSystem = msg.senderId === "system_shield";
@@ -1465,6 +1557,37 @@ export default function App() {
                         ✓ {tag}
                       </span>
                     ))}
+                  </div>
+                </div>
+
+                {/* Simulated subscription toggle container */}
+                <div className="bg-[#111111] p-4 rounded-xl border border-white/5 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="text-xs font-bold text-white">Membership Status</h4>
+                      <p className="text-[9px] text-white/40 leading-relaxed">Toggle to test Free limits vs Premium VIP Rose perks</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newPremium = !isPremium;
+                        setIsPremium(newPremium);
+                        if (newPremium) {
+                          setRosesCount(5); // replenish rose inventory for VIP developers
+                          alert("Velvet VIP Premium unlocked! You now have unlimited swiping, access to secret algorithms, and refreshed Roses.");
+                        } else {
+                          setRosesCount(1); // lock back to free tier starting count
+                          alert("Downgraded to Free member tier. Daily limits and single Rose tokens are active.");
+                        }
+                      }}
+                      className={`px-3 py-1.5 text-[10px] font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer ${
+                        isPremium 
+                          ? "bg-red-950 text-red-300 border border-red-800/40" 
+                          : "bg-[#D48166] text-black font-extrabold"
+                      }`}
+                    >
+                      {isPremium ? "VIP: Switch to Free" : "Unlock Velvet VIP"}
+                    </button>
                   </div>
                 </div>
 

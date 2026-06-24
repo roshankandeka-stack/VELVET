@@ -1,7 +1,8 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+
+const app = express();
 
 // Lazy-initialized Gemini client to prevent crash if GEMINI_API_KEY is not set immediately
 let aiClient: GoogleGenAI | null = null;
@@ -23,12 +24,8 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
-
-  // Middleware for body parsing
-  app.use(express.json());
+// Middleware for body parsing
+app.use(express.json());
 
   // AI Moderation API: Are You Sure? warnings and harassment scan
   app.post("/api/ai/moderate", async (req, res) => {
@@ -204,24 +201,32 @@ Provide a validation assessment in JSON structure with fields:
     }
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+  // Vite middleware / Static serving setup
+  async function setupServer() {
+    if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else if (!process.env.VERCEL) {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+
+    // Only start the server if not running in a serverless environment like Vercel
+    if (!process.env.VERCEL) {
+      const PORT = 3000;
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Dating App fullstack server running on http://0.0.0.0:${PORT}`);
+      });
+    }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Dating App fullstack server running on http://0.0.0.0:${PORT}`);
-  });
-}
+  setupServer();
 
-startServer();
+export default app;
